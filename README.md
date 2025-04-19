@@ -16,9 +16,7 @@ This repo includes:
 |--------|---------|
 | `glue_jobs/` | Sample Glue job scripts with common ETL patterns |
 | `lambda_templates/` | Lambda functions for automation & orchestration |
-| `architecture_diagrams/` | Reusable visuals for client decks or Upwork proposals |
-| `proposals/` | Ready-to-adapt templates to win AWS freelance gigs |
-| `client_handling/` | Battle-tested insights for managing expectations |
+
 
 ---
 
