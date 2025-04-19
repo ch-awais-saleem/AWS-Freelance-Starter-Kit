@@ -30,6 +30,9 @@ aws-freelance-starter-kit/
 │   ├── daily_file_count.sql           # Athena query: files processed per day
 │   └── daily_summary_lambda.py        # Lambda: summarize today's ETL activity
 │
+├── cloudformation/
+│   └── deploy_stack.yaml              # Full stack template to provision S3, Lambda, Glue, SNS
+│
 └── README.md                          # Project overview and setup guide
 ```
 
@@ -43,22 +46,27 @@ git clone https://github.com/your-username/aws-freelance-starter-kit.git
 cd aws-freelance-starter-kit
 ```
 
-2. **Set Up Your Glue Job**
-- Go to AWS Glue → Jobs → Create new job
-- Upload the `glue_jobs/json_to_csv.py` script
-- Set up IAM role and parameters like:
-  - `--SOURCE_PATH`: S3 path of input JSON
-  - `--TARGET_PATH`: S3 path to store CSV
+2. **Deploy Full Stack with CloudFormation**
+```bash
+aws cloudformation deploy \
+  --template-file cloudformation/deploy_stack.yaml \
+  --stack-name freelance-etl-pipeline \
+  --capabilities CAPABILITY_NAMED_IAM
+```
+- This provisions:
+  - S3 buckets
+  - Glue Job
+  - Lambda functions
+  - SNS Topic
+  - IAM roles
 
-3. **Deploy Lambda Functions**
-- Use the scripts in `lambda_templates/`
-- Configure them with triggers from S3 or SNS
-- Adjust IAM roles to allow Glue/SNS access
+3. **Manual Edits** (optional)
+- Add your own Glue script paths
+- Update Lambda handler references in the template
 
-4. **Query Logs Using Athena**
-- Use SQL files in `reports/`
-- Replace `your_db` and table names as needed
-- Visualize with QuickSight or Power BI
+4. **Athena Setup**
+- Run queries in `reports/` folder
+- Use with QuickSight or Power BI for visuals
 
 ---
 
