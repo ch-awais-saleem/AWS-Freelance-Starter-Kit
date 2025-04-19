@@ -1,0 +1,110 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: AWS Freelance Starter Kit - Full Stack for S3, Lambda, Glue, SNS
+
+Parameters:
+  BucketName:
+    Type: String
+    Description: S3 bucket to store data files
+
+Resources:
+  DataBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref BucketName
+
+  SNSTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: File Upload Notifications
+      TopicName: file-upload-topic
+
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: lambda-glue-trigger-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/AWSGlueConsoleFullAccess
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+        - arn:aws:iam::aws:policy/AmazonSNSFullAccess
+
+  GlueJobRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: glue-job-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: glue.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+
+  GlueJob:
+    Type: AWS::Glue::Job
+    Properties:
+      Name: JsonToCsvJob
+      Role: !GetAtt GlueJobRole.Arn
+      Command:
+        Name: glueetl
+        ScriptLocation: !Sub 's3://${BucketName}/scripts/json_to_csv.py'
+        PythonVersion: 3
+      GlueVersion: "4.0"
+      MaxCapacity: 2.0
+
+  LambdaTriggerGlue:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: trigger-glue-on-upload
+      Handler: s3_trigger_to_glue.lambda_handler
+      Runtime: python3.10
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        S3Bucket: !Ref BucketName
+        S3Key: lambda/s3_trigger_to_glue.zip
+      Timeout: 60
+
+  LambdaSendSns:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: send-sns-notification
+      Handler: send_sns_on_upload.lambda_handler
+      Runtime: python3.10
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        S3Bucket: !Ref BucketName
+        S3Key: lambda/send_sns_on_upload.zip
+      Timeout: 60
+
+  BucketNotification:
+    Type: AWS::S3::BucketNotification
+    Properties:
+      Bucket: !Ref DataBucket
+      NotificationConfiguration:
+        LambdaConfigurations:
+          - Event: s3:ObjectCreated:*
+            Function: !GetAtt LambdaTriggerGlue.Arn
+
+Outputs:
+  BucketName:
+    Description: S3 bucket name
+    Value: !Ref DataBucket
+  SNSTopicArn:
+    Description: SNS Topic ARN
+    Value: !Ref SNSTopic
+  LambdaTriggerArn:
+    Description: Lambda function to trigger Glue
+    Value: !GetAtt LambdaTriggerGlue.Arn
+  GlueJobName:
+    Description: Glue Job name
+    Value: !Ref GlueJob
